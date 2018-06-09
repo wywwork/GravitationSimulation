@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Gravitation Simulation</title>
+</head>
+<body>   
+    <canvas id="gameCanvas" width="1500" height="700" ></canvas>
+    <script type="text/javascript" src="cocos2d-js-v3.13.js" charset="UTF-8"></script>
+    <script type="text/javascript" src="Gravitation.js" charset="UTF-8"></script>
+    <script type="text/javascript">
+          window.onload = function(){
+              cc.game.onStart = function(){
+                  //load resources
+                  cc.LoaderScene.preload([], function () {
+                      cc.director.runScene(new MyScene());
+                  }, this);
+              };
+              cc.game.run("gameCanvas");
+          };
+    </script>
+</body>
+</html>
