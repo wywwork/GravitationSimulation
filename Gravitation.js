@@ -1,11 +1,9 @@
 
-
 var MyActionTag = {
     circleTag:1,
     freeFallTag:2,
     gravitationTag:3
 }
-
 
 //Circular Motion, need center of circle, radius, start angle and periodic time
 //This action runs only one cycle, and if it needs to continue, use the cc.RepeatForever.
@@ -92,6 +90,9 @@ var Gravitation = cc.ActionInterval.extend({
     _fixed_star:null,
     _last_dt:0,
 
+    _new_speed_x: undefined,
+    _new_speed_y: undefined,
+
     ctor:function (duration, fixed_star, speed_x, speed_y) {
         cc.ActionInterval.prototype.initWithDuration.call(this, duration);
         this._current_speed_x = speed_x;
@@ -131,6 +132,13 @@ var Gravitation = cc.ActionInterval.extend({
     update:function (dt) {
         dt = this._computeEaseTime(dt);
         if (this.target) {
+            if (this._new_speed_x != undefined && this._new_speed_y != undefined) {
+                this._current_speed_x = this._new_speed_x;
+                this._current_speed_y = this._new_speed_y;
+                this._new_speed_x = undefined;
+                this._new_speed_y = undefined;
+            }
+
             var time = (dt-this._last_dt)*this._duration;
             this._last_dt = dt;
             var title_num = 10*Math.ceil(Math.abs(time*this._current_speed_x)+Math.abs(time*this._current_speed_y));
@@ -138,10 +146,15 @@ var Gravitation = cc.ActionInterval.extend({
                 this.updatePosition(time/title_num);
             this.target.setPosition(Math.floor(this._current_x), Math.floor(this._current_y));
         }
+    },
+
+    setNewSpeed: function (speed_x, speed_y) {
+        this._new_speed_x = speed_x;
+        this._new_speed_y = speed_y;
     }
 });
 
-var Star = cc.DrawNode.extend({
+var Planet = cc.DrawNode.extend({
     radius:0,
     mass:0,
 
@@ -153,6 +166,19 @@ var Star = cc.DrawNode.extend({
     },
 });
 
+var FixedStar = cc.ParticleSun.extend({
+    radius:0,
+    mass:0,
+
+    ctor:function (radius, mass) {
+        this._super();
+        this.radius = radius;
+        this.mass = mass;
+        this.setStartSize(this.radius*0.8);
+        this.setEndSize(this.radius*0.2);
+    },
+});
+
 var Galaxy = cc.Layer.extend({
     fixed_star:null,
     planets:null,
@@ -161,28 +187,27 @@ var Galaxy = cc.Layer.extend({
         this._super();
         this.planets = new Map();
     },
-
     setFixedStar:function (fixed_star, position) {
         this.fixed_star = fixed_star;
         this.fixed_star.setPosition(position.x, position.y);
         this.addChild(this.fixed_star);
     },
-    addPlanet:function (id, star, position, speed_x, speed_y) {
+    addPlanet:function (id, planet, position, speed_x, speed_y) {
         var action = new Gravitation(60, this.fixed_star, speed_x, speed_y);
         action.setTag(MyActionTag.gravitationTag);
-        star.setPosition(position.x, position.y);
-        star.runAction(action);
-        this.planets.set(id, star);
-        this.addChild(star);
-    }
+        planet.setPosition(position.x, position.y);
+        planet.runAction(action);
+        this.planets.set(id, planet);
+        this.addChild(planet);
+    },
+    getPlanetById:function (id) {
+        return this.planets.get(id);
+    },
 });
 
 
 var MyScene = cc.Scene.extend({
-    _stars:null,
-    _start_num:500,
-
-    _black_hole:null,
+    _my_galaxy:null,
 
     onEnter:function () {
         this._super();
@@ -190,76 +215,40 @@ var MyScene = cc.Scene.extend({
         var ccLayer = new cc.LayerColor(cc.color(0,0,0,255),size.width, size.height);
         this.addChild(ccLayer);
 
-        var my_galaxy = new Galaxy();
-        this.addChild(my_galaxy);
+        this._my_galaxy = new Galaxy();
+        this.addChild(this._my_galaxy);
 
-        var my_sun = new Star(30, 9000000, cc.color(0, 0, 255, 255));
-        my_galaxy.setFixedStar(my_sun, cc.p(size.width/2, size.height/2));
+        var my_sun = new FixedStar(50, 9000000);
+        this._my_galaxy.setFixedStar(my_sun, cc.p(size          .width/2, size.height/2));
 
-        var plamet1 = new Star(6, 1, cc.color(255, 255, 255, 255));
-        my_galaxy.addPlanet("planet1", plamet1, cc.p(size.width/2 + 100, size.height/2), 0, 300);
+        var planet1 = new Planet(6, 1, cc.color(255, 255, 255, 255));
+        this._my_galaxy.addPlanet("planet1", planet1, cc.p(size.width/2 + 100, size.height/2), 0, 300);
 
-        var plamet2 = new Star(8, 1, cc.color(255, 255, 255, 255));
-        my_galaxy.addPlanet("planet2", plamet2, cc.p(size.width/2 + 180, size.height/2), 0 , 223.607);
+        var planet2 = new Planet(8, 1, cc.color(255, 255, 255, 255));
+        this._my_galaxy.addPlanet("planet2", planet2, cc.p(size.width/2 + 180, size.height/2), 0 , 223.607);
 
-        var plamet3 = new Star(10, 1, cc.color(255, 255, 255, 255));
-        my_galaxy.addPlanet("planet3", plamet3, cc.p(size.width/2 , size.height/2 + 250), -189.737, 0);
+        var planet3 = new Planet(9, 1, cc.color(255, 255, 255, 255));
+        this._my_galaxy.addPlanet("planet3", planet3, cc.p(size.width/2 , size.height/2 + 250), -189.737, 0);
 
-        var plamet4 = new Star(5, 1, cc.color(255, 255, 255, 255));
-        my_galaxy.addPlanet("planet4", plamet4, cc.p(size.width/2 + 250, size.height/2 +250), -60, 60);
+        var planet4 = new Planet(5, 1, cc.color(255, 255, 255, 255));
+        this._my_galaxy.addPlanet("planet4", planet4, cc.p(size.width/2 + 250, size.height/2 +250), -60, 60);
+
+        var planet5 = new Planet(7, 1, cc.color(255, 255, 255, 255));
+        this._my_galaxy.addPlanet("planet5", planet5, cc.p(size.width/2 , size.height/2 + 300), -173.205, 0);
     },
 
-    // ctor:function () {
-    //     this._super();
-    //     if ('mouse' in cc.sys.capabilities) {
-    //         cc.eventManager.addListener({
-    //             event: cc.EventListener.MOUSE,
-    //             onMouseDown: function (event) {
-    //                 var target = event.getCurrentTarget();
-    //                 var pos = event.getLocation();
-    //                 //target.transfromBlackHole(pos);
-    //             },
-    //         }, this);
-    //     }
-    //
-    //     if ('keyboard' in cc.sys.capabilities) {
-    //         cc.eventManager.addListener({
-    //             event: cc.EventListener.KEYBOARD,
-    //             onKeyPressed: function (keyCode, event) {
-    //                 var target = event.getCurrentTarget();
-    //                 if (keyCode == 70) {
-    //                     target.transfromFreefaller();
-    //                 } else if (keyCode == 66) {
-    //                     target.transfromBlackHole();
-    //                 }
-    //
-    //             }
-    //         }, this)
-    //     }
-    // },
-    //
-    // transfromFreefaller: function () {
-    //     for (var i = 0; i < this._start_num; i++){
-    //         this._stars[i].node.stopAllActions();
-    //         var speed_x = this._stars[i].action.speed_x;
-    //         var speed_y = this._stars[i].action.speed_y;
-    //         this._stars[i].action = new Freefaller(3,speed_x,speed_y);
-    //         this._stars[i].node.runAction(this._stars[i].action);
-    //     }
-    // },
-    //
-    // transfromBlackHole: function (pos) {
-    //     var black_holes = new Array();
-    //     black_holes[0] = new BlackHole(1000000000, pos);
-    //     this.addChild(black_holes[0].node);
-    //
-    //     for (var i = 0; i < this._start_num; i++){
-    //         this._stars[i].node.stopAllActions();
-    //         var speed_x = this._stars[i].action.speed_x;
-    //         var speed_y = this._stars[i].action.speed_y;
-    //         this._stars[i].action =  new Gravitation(30,speed_x,speed_y,black_holes);
-    //         this._stars[i].node.runAction(this._stars[i].action);
-    //     }
-    // },
+    ctor:function () {
+        this._super();
+        if ('mouse' in cc.sys.capabilities) {
+            cc.eventManager.addListener({
+                event: cc.EventListener.MOUSE,
+                onMouseDown: function (event) {
+                    var target = event.getCurrentTarget();
+                    var action = target._my_galaxy.getPlanetById("planet1").getActionByTag(MyActionTag.gravitationTag);
+                    action.setNewSpeed(action._current_speed_x*1.1, action._current_speed_y*1.1);
+                },
+            }, this);
+        }
+    },
 });
 
